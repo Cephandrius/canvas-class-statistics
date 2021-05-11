@@ -124,57 +124,89 @@ def analyze_submissions(submissions):
     """
 
     if(type(submissions) == type([])):
-        dataframe = pd.DataFrame(submissions)
-    elif(type(submissions) == type(pd.DataFrame())):
-        dataframe = submissions
-    else:
+        submissions = pd.DataFrame(submissions)
+    elif(type(submissions) != type(pd.DataFrame())):
         print("Got an unexpected type for submissions")
         return
 
-    dataframe.sort_values(ASSIGNMENT_ID, inplace=True)
+    submissions.sort_values(ASSIGNMENT_ID, inplace=True)
     enrollments = get_data(url_enrollments, headers)
     user_ids = enrollments[(enrollments.type == "StudentEnrollment").combine(enrollments.enrollment_state == "active", element_wise_and)].drop_duplicates(USER_ID)[USER_ID].to_list() 
-    assignment_ids = dataframe.drop_duplicates(ASSIGNMENT_ID)[ASSIGNMENT_ID].to_list()
-
+    assignment_ids = submissions.drop_duplicates(ASSIGNMENT_ID)[ASSIGNMENT_ID].to_list()
     results = pd.DataFrame([],columns=["name", "submissions", "total_grade", "average_grade", "missing", "late", "graded", "percent_graded"])
+
     for assignment_id in assignment_ids:
-        assignment_results = {"name":"","submissions":0,"total_grade":0,"average_grade":0,"missing":0,"late":0,"graded":0, "percent_graded":0}
-        data, next_url = get_json(url_assignment + str(assignment_id), headers)
-        assignment_results["name"] = data[ASSIGNMENT_NAME]
-        print(data[ASSIGNMENT_NAME])
-        print(data['submission_types'])
+        assignment_results, assignment = create_assignment_row(assignment_id)
+        print(assignment_results[ASSIGNMENT_NAME])
+
         for user_id in user_ids:
-            user_submissions = dataframe[(dataframe[USER_ID]==user_id).combine(dataframe[ASSIGNMENT_ID]==assignment_id,element_wise_and)]
-            if(user_submissions[SUBMISSION_ID].count() == 0):
-                continue
-
-            user_submissions = user_submissions.sort_values(SUBMISSION_DATE, ascending=False, na_position="last")
-            most_recent_submission = user_submissions.iloc[0]
-            state = most_recent_submission[ASSIGNMENT_STATE]
-            if(not most_recent_submission[MISSING] and most_recent_submission[ASSIGNMENT_STATE] != "unsubmitted"):
-                assignment_results["submissions"] += 1
-                if(state == "graded"):
-                    assignment_results["graded"] += 1
-                    grade = most_recent_submission[GRADE]
-                    assignment_results["total_grade"] += grade
-
-                if(most_recent_submission[LATE]):
-                    assignment_results["late"] += 1
-
-        if(assignment_results["submissions"] != 0):
-            assignment_results["percent_graded"] =  assignment_results["graded"] /assignment_results["submissions"] * 100
-        else:
-            assignment_results["percent_graded"] = 100
-
-        if(assignment_results["graded"] != 0):
-            assignment_results["average_grade"] = assignment_results["total_grade"] / assignment_results["graded"]
-        else:
-            assignment_results["average_grade"] = 0
-
-        assignment_results["missing"] = len(user_ids) - assignment_results["submissions"]
-        assignment_results["average_grade"] = assignment_results["average_grade"] / data[MAX_GRADE] * 100
+            process_user_for_assignment(submissions, assignment_results, assignment_id, user_id)
+        
+        complete_assignment_row(assignment_results, user_ids, assignment)
         results = results.append([assignment_results], sort=True)
     return results
+
+
+def create_assignment_row(assignment_id):
+    """
+    * input:
+    *   assignment_id: (string) the id for an assignment
+    * output:
+    *   (dictionary, dictionary)
+    *       dictionary: has entries corresponding to the columns of the results DataFrame in 
+    *           analyze_submissions
+    *       dictionary: has all information about assignment
+    """
+
+    assignment_results = {"name":"","submissions":0,"total_grade":0,"average_grade":0,"missing":0,"late":0,"graded":0, "percent_graded":0}
+    assignment, next_url = get_json(url_assignment + str(assignment_id), headers)
+    assignment_results["name"] = assignment[ASSIGNMENT_NAME]
+    return assignment_results
+
+
+def complete_assignment_row(assignment_results, user_ids, assignment):
+    """
+    * This will calculate the average grade, missing submissions and average grade
+    * input:
+    *   assignment_results: (dictionary) assignment results after each user has been processed
+    * output:
+    *   None
+    """
+    if(assignment_results["submissions"] != 0):
+        assignment_results["percent_graded"] =  assignment_results["graded"] /assignment_results["submissions"] * 100
+    else:
+        assignment_results["percent_graded"] = 100
+
+    if(assignment_results["graded"] != 0):
+        assignment_results["average_grade"] = assignment_results["total_grade"] / assignment_results["graded"]
+    else:
+        assignment_results["average_grade"] = 0
+
+    assignment_results["missing"] = len(user_ids) - assignment_results["submissions"]
+    assignment_results["average_grade"] = assignment_results["average_grade"] / assignment[MAX_GRADE] * 100
+    
+
+def process_user_for_assignment(submissions, assignment_results, assignment_id, user_id):
+    """
+    *
+    """
+    user_submissions = submissions[(submissions[USER_ID]==user_id).combine(submissions[ASSIGNMENT_ID]==assignment_id,element_wise_and)]
+    if(user_submissions[SUBMISSION_ID].count() == 0):
+        return
+
+    user_submissions = user_submissions.sort_values(SUBMISSION_DATE, ascending=False, na_position="last")
+    most_recent_submission = user_submissions.iloc[0]
+    state = most_recent_submission[ASSIGNMENT_STATE]
+    if(not most_recent_submission[MISSING] and state != "unsubmitted"):
+        assignment_results["submissions"] += 1
+        if(state == "graded"):
+            assignment_results["graded"] += 1
+            grade = most_recent_submission[GRADE]
+            assignment_results["total_grade"] += grade
+
+        if(most_recent_submission[LATE]):
+            assignment_results["late"] += 1
+
 
 def get_submissions():
     """
@@ -185,6 +217,7 @@ def get_submissions():
     """
     dataframe = get_data(url_submissions, headers) 
     dataframe.to_csv("grades.csv")
+
 
 def get_data(url, headers):
     """
@@ -201,7 +234,10 @@ def get_data(url, headers):
     dataframe = pd.DataFrame(data)
     return dataframe
 
-get_submissions()
-submissions = pd.read_csv("grades.csv")
-results = analyze_submissions(submissions)
-results.to_csv("results.csv")
+
+if __name__ == "__main__":
+    get_submissions()
+    submissions = pd.read_csv("grades.csv")
+    results = analyze_submissions(submissions)
+    results.to_csv("results.csv")
+
