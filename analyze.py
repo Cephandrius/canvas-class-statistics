@@ -161,7 +161,7 @@ def create_assignment_row(assignment_id):
     assignment_results = {"name":"","submissions":0,"total_grade":0,"average_grade":0,"missing":0,"late":0,"graded":0, "percent_graded":0}
     assignment, next_url = get_json(url_assignment + str(assignment_id), headers)
     assignment_results["name"] = assignment[ASSIGNMENT_NAME]
-    return assignment_results
+    return assignment_results, assignment
 
 
 def complete_assignment_row(assignment_results, user_ids, assignment):
@@ -188,7 +188,15 @@ def complete_assignment_row(assignment_results, user_ids, assignment):
 
 def process_user_for_assignment(submissions, assignment_results, assignment_id, user_id):
     """
-    *
+    * Takes an assignment id and user id and finds the most recent submission and updates the
+    * summary statistics based on that submission
+    * input:
+    *   submissions: (DataFrame) contains all submissions for this class
+    *   assignment_results: (dictionary) has summary datat for current assignment
+    *   assignment_id: (string) id of the current assignment
+    *   user_id: (string) id of user to process
+    * output:
+    *   None
     """
     user_submissions = submissions[(submissions[USER_ID]==user_id).combine(submissions[ASSIGNMENT_ID]==assignment_id,element_wise_and)]
     if(user_submissions[SUBMISSION_ID].count() == 0):
