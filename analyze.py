@@ -6,7 +6,8 @@ import urllib.request
 #Constants for HTTP API
 course_num = "10989"
 developer_token = "7407~Muwvpd3rhwEmYy1hBCTj4TtbtU51icAkUfdv8vZTkcxdAPH6tSVSA6Hsm388mxI8"
-url_prefix = "https://byu.instructure.com/api/v1/courses/" + course_num
+domain_name = "https://byu.instructure.com"
+url_prefix = domain_name + "/api/v1/courses/" + course_num
 url_submissions = url_prefix + "/students/submissions?student_ids=all&page_size=100"
 url_assignment = url_prefix + "/assignments/"
 url_enrollments = url_prefix + "/enrollments"
@@ -22,13 +23,17 @@ MISSING = "missing"
 LATE = "late"
 POST_DATE = "posted_at"
 SUBMISSION_DATE = "submitted_at"
-ASSIGNMENT_GRADE = "grade_matches_current_submission"
+SUBMISSION_GRADE = "grade_matches_current_submission"
 MAX_GRADE = "points_possible"
 ASSIGNMENT_NAME = "name"
-ASSIGNMENT_STATE = "workflow_state"
+SUBMISSION_STATE = "workflow_state"
+
 
 def get_json(url, headers):
     """
+    * Gets a list of dictionaries that is the response from the url with the headers.
+    * Since canvas paginates results, it returns the next url to query or none if this
+    * url was the last one
     * input:
     *   url: (string) an http/https url that is a GET request that will return a JSON
     *   headers: (dictionary) headers for the request 
@@ -117,6 +122,9 @@ def element_wise_and(element1, element2):
 
 def analyze_submissions(submissions):
     """
+    * This is the primary function of the script. Takes a DataFrame and finds the most recent
+    * submission for each combination of assignment and user and updates the results table
+    * based on that
     * input:
     *   submissions: (list of dictionaries or DataFrame) every submission for the class
     * output:
@@ -144,11 +152,14 @@ def analyze_submissions(submissions):
         
         complete_assignment_row(assignment_results, user_ids, assignment)
         results = results.append([assignment_results], sort=True)
+    results.drop("total_grade",axis=1, inplace=True)
     return results
 
 
 def create_assignment_row(assignment_id):
     """
+    * Will create a row for an assignment in the form of a dictionary as well as returning 
+    * all the information about the assignment
     * input:
     *   assignment_id: (string) the id for an assignment
     * output:
@@ -188,8 +199,8 @@ def complete_assignment_row(assignment_results, user_ids, assignment):
 
 def process_user_for_assignment(submissions, assignment_results, assignment_id, user_id):
     """
-    * Takes an assignment id and user id and finds the most recent submission and updates the
-    * summary statistics based on that submission
+    * Takes an assignment id and user id and finds the most recent submission and 
+    * updates the summary statistics based on that submission
     * input:
     *   submissions: (DataFrame) contains all submissions for this class
     *   assignment_results: (dictionary) has summary datat for current assignment
@@ -204,7 +215,7 @@ def process_user_for_assignment(submissions, assignment_results, assignment_id, 
 
     user_submissions = user_submissions.sort_values(SUBMISSION_DATE, ascending=False, na_position="last")
     most_recent_submission = user_submissions.iloc[0]
-    state = most_recent_submission[ASSIGNMENT_STATE]
+    state = most_recent_submission[SUBMISSION_STATE]
     if(not most_recent_submission[MISSING] and state != "unsubmitted"):
         assignment_results["submissions"] += 1
         if(state == "graded"):
@@ -218,13 +229,14 @@ def process_user_for_assignment(submissions, assignment_results, assignment_id, 
 
 def get_submissions():
     """
-    * This function will get all the submissions for the class and then save them to grades.csv
+    * This function will get all the submissions for the class and then save them 
+    * to grades.csv
     * input:
     * output:
     *   None
     """
     dataframe = get_data(url_submissions, headers) 
-    dataframe.to_csv("grades.csv")
+    dataframe.to_csv("grades.csv", index=False)
 
 
 def get_data(url, headers):
@@ -247,5 +259,5 @@ if __name__ == "__main__":
     get_submissions()
     submissions = pd.read_csv("grades.csv")
     results = analyze_submissions(submissions)
-    results.to_csv("results.csv")
+    results.to_csv("results.csv", index=False, columns=["name", "submissions", "late", "missing", "percent_graded", "graded", "average_grade"])
 
