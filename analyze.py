@@ -230,13 +230,13 @@ def process_user_for_assignment(submissions, assignment_results, assignment_id, 
 def get_submissions():
     """
     * This function will get all the submissions for the class and then save them 
-    * to grades.csv
+    * to submissions.csv
     * input:
     * output:
     *   None
     """
     dataframe = get_data(url_submissions, headers) 
-    dataframe.to_csv("grades.csv", index=False)
+    dataframe.to_csv("submissions.csv", index=False)
 
 
 def get_data(url, headers):
@@ -257,7 +257,7 @@ def get_data(url, headers):
 
 if __name__ == "__main__":
     get_submissions()
-    submissions = pd.read_csv("grades.csv")
+    submissions = pd.read_csv("submissions.csv")
     results = analyze_submissions(submissions)
     results.to_csv("results.csv", index=False, columns=["name", "submissions", "late", "missing", "percent_graded", "graded", "average_grade"])
 
