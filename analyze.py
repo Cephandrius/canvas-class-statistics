@@ -4,9 +4,9 @@ import json
 import urllib.request
 
 #Constants for HTTP API
-course_num = "10989"
-developer_token = "7407~Muwvpd3rhwEmYy1hBCTj4TtbtU51icAkUfdv8vZTkcxdAPH6tSVSA6Hsm388mxI8"
-domain_name = "https://byu.instructure.com"
+course_num = ""
+developer_token = ""
+domain_name = ""
 url_prefix = domain_name + "/api/v1/courses/" + course_num
 url_submissions = url_prefix + "/students/submissions?student_ids=all&page_size=100"
 url_assignment = url_prefix + "/assignments/"
