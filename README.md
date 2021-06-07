@@ -36,8 +36,9 @@ If this command doesn't print out "Python 3.X.X", then ask your system administr
 
 If you have identified the command to run Python3 scripts, then this is how you run this [script](analyze.py).
 
-> $ python analyze.py \n
-> $ ptyhon3 analyze.py
+> $ python analyze.py 
+
+> $ python3 analyze.py
 
 Use the command that corresponds to what you found to have the correct verision.
 
